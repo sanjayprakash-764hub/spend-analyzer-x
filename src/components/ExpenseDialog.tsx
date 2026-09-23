@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { suggestCategory } from "@/lib/categorize.functions";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Sparkles } from "lucide-react";
+import { Loader2, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   CATEGORIES,
   CATEGORY_META,
   PAYMENT_METHODS,
-  guessCategory,
+  guessWithConfidence,
   iso,
   type Transaction,
 } from "@/lib/expenses";
@@ -36,7 +38,11 @@ export function ExpenseDialog({ open, onOpenChange, editing }: Props) {
   const [amount, setAmount] = useState("");
   const [merchant, setMerchant] = useState("");
   const [category, setCategory] = useState<string>("Other");
-  const [autoPicked, setAutoPicked] = useState(false);
+  const [suggestion, setSuggestion] = useState<{ category: string; confidence: number; source: "rules" | "ai" } | null>(null);
+  const [userPicked, setUserPicked] = useState(false);
+  const [thinking, setThinking] = useState(false);
+  const askAi = useServerFn(suggestCategory);
+  const requestId = useRef(0);
   const [date, setDate] = useState(iso(new Date()));
   const [paymentMethod, setPaymentMethod] = useState<string>("UPI");
   const [notes, setNotes] = useState("");
@@ -49,20 +55,42 @@ export function ExpenseDialog({ open, onOpenChange, editing }: Props) {
     setDate(editing?.date ?? iso(new Date()));
     setPaymentMethod(editing?.payment_method ?? "UPI");
     setNotes(editing?.description ?? "");
-    setAutoPicked(false);
+    setSuggestion(null);
+    setUserPicked(Boolean(editing));
   }, [open, editing]);
 
-  // Rule-based auto-categorization from the merchant / note text.
+  // Auto-categorization: instant keyword rules first, AI fallback for unknown merchants.
   useEffect(() => {
-    if (editing) return;
-    const guess = guessCategory(`${merchant} ${notes}`);
-    if (guess.matched) {
-      setCategory(guess.category);
-      setAutoPicked(true);
-    } else {
-      setAutoPicked(false);
+    if (!open || userPicked) return;
+    const id = ++requestId.current;
+    setThinking(false);
+    const rule = guessWithConfidence(merchant, notes);
+    if (rule) {
+      setCategory(rule.category);
+      setSuggestion({ ...rule, source: "rules" });
+      return;
     }
-  }, [merchant, notes, editing]);
+    if (merchant.trim().length < 3 && notes.trim().length < 4) {
+      setSuggestion(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setThinking(true);
+      try {
+        const result = await askAi({ data: { merchant: merchant.trim(), notes: notes.trim(), amount } });
+        if (id !== requestId.current) return;
+        setCategory(result.category);
+        setSuggestion({ ...result, source: "ai" });
+      } catch {
+        if (id === requestId.current) setSuggestion(null);
+      } finally {
+        if (id === requestId.current) setThinking(false);
+      }
+    }, 700);
+    return () => clearTimeout(timer);
+    // amount is only context for the AI; don't re-ask on every digit
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [merchant, notes, open, userPicked, askAi]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -138,7 +166,10 @@ export function ExpenseDialog({ open, onOpenChange, editing }: Props) {
               value={category}
               onValueChange={(value) => {
                 setCategory(value);
-                setAutoPicked(false);
+                setUserPicked(true);
+                setSuggestion(null);
+                requestId.current++;
+                setThinking(false);
               }}
             >
               <SelectTrigger id="category">
@@ -152,9 +183,19 @@ export function ExpenseDialog({ open, onOpenChange, editing }: Props) {
                 ))}
               </SelectContent>
             </Select>
-            {autoPicked && (
-              <p className="flex items-center gap-1.5 text-xs text-primary">
-                <Sparkles className="size-3" /> Picked automatically — change it if it's wrong.
+            {thinking && (
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="size-3 animate-spin" /> Figuring out the category…
+              </p>
+            )}
+            {!thinking && suggestion && (
+              <p className="flex flex-wrap items-center gap-1.5 text-xs">
+                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium ${CATEGORY_META[suggestion.category as keyof typeof CATEGORY_META]?.tint ?? ""}`}>
+                  {CATEGORY_META[suggestion.category as keyof typeof CATEGORY_META]?.emoji} {suggestion.category} — {suggestion.confidence}% confidence
+                </span>
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <Wand2 className="size-3" /> {suggestion.source === "ai" ? "AI suggestion" : "Known merchant"} · change it if it's wrong
+                </span>
               </p>
             )}
           </div>
