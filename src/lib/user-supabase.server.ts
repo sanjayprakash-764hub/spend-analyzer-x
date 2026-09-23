@@ -24,8 +24,3 @@ export async function userClientFromRequest(request: Request) {
   if (error || !data?.claims?.sub) return null;
   return { supabase, userId: data.claims.sub as string };
 }
-
-export function lovableResponses(key: string) {
-  // imported lazily by callers to keep this file server-only
-  return key;
-}
