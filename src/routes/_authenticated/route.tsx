@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { LayoutDashboard, ListOrdered, PiggyBank, LogOut, Wallet } from "lucide-react";
+import { LayoutDashboard, ListOrdered, MessageCircleQuestion, PiggyBank, LogOut, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/expenses", label: "Expenses", icon: ListOrdered },
   { to: "/budget", label: "Budget", icon: PiggyBank },
+  { to: "/assistant", label: "Ask", icon: MessageCircleQuestion },
 ] as const;
 
 function AuthenticatedLayout() {
