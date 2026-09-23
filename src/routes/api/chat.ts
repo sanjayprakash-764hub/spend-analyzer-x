@@ -14,7 +14,14 @@ export const Route = createFileRoute("/api/chat")({
         const user = await userClientFromRequest(request);
         if (!user) return new Response("Please sign in again.", { status: 401 });
 
-        const body = (await request.json()) as { messages?: unknown; today?: unknown };
+        const raw = await request.text();
+        if (raw.length > 200_000) return new Response("Conversation is too long. Clear the chat and try again.", { status: 413 });
+        let body: { messages?: unknown; today?: unknown };
+        try {
+          body = JSON.parse(raw);
+        } catch {
+          return new Response("Invalid request", { status: 400 });
+        }
         if (!Array.isArray(body.messages)) return new Response("Messages are required", { status: 400 });
         const messages = (body.messages as UIMessage[]).slice(-40);
         const today = typeof body.today === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.today)
@@ -45,7 +52,7 @@ STRICT RULES:
 - Format money like ₹1,250. Keep answers short and friendly, using markdown lists when helpful.
 - You cannot move money, and you give observations, not financial guarantees.`,
           messages: await convertToModelMessages(messages),
-          stopWhen: stepCountIs(50),
+          stopWhen: stepCountIs(8),
           tools: {
             spending_summary: tool({
               description: "Total spent in a date range with breakdown by category, payment method and top merchants. Optional category/merchant filters.",

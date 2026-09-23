@@ -116,7 +116,7 @@ function Dashboard() {
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Stat label="Total spent" value={money(stats.total)} accent />
         <Stat label="Budget" value={stats.overall > 0 ? money(stats.overall) : "Not set"} />
         <Stat
@@ -285,10 +285,10 @@ function Stat({
   tone?: "good" | "bad";
 }) {
   return (
-    <div className={`surface p-5 ${accent ? "bg-accent" : ""}`}>
-      <p className="text-sm text-muted-foreground">{label}</p>
+    <div className={`surface min-w-0 p-4 sm:p-5 ${accent ? "bg-accent" : ""}`}>
+      <p className="truncate text-xs text-muted-foreground sm:text-sm">{label}</p>
       <p
-        className={`num mt-1 text-2xl font-semibold ${tone === "bad" ? "text-destructive" : ""}`}
+        className={`num mt-1 truncate text-lg font-semibold sm:text-2xl ${tone === "bad" ? "text-destructive" : ""}`}
       >
         {value}
       </p>

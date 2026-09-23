@@ -47,12 +47,12 @@ function AuthenticatedLayout() {
   return (
     <div className="min-h-screen pb-24 md:pb-0">
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-4">
-          <Link to="/dashboard" className="flex items-center gap-2 font-display text-lg font-semibold">
-            <span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:gap-6 sm:py-4">
+          <Link to="/dashboard" className="flex min-w-0 items-center gap-2 font-display text-lg font-semibold">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
               <Wallet className="size-4" />
             </span>
-            Spend Manager
+            <span className="truncate whitespace-nowrap">Spend Manager</span>
           </Link>
           <nav className="ml-auto hidden items-center gap-1 md:flex">
             {NAV.map((item) => (
@@ -68,17 +68,20 @@ function AuthenticatedLayout() {
               </Link>
             ))}
           </nav>
-          <Button variant="ghost" size="sm" className="ml-auto md:ml-0" onClick={signOut}>
-            <LogOut className="size-4" /> Sign out
+          <Button variant="ghost" size="sm" className="ml-auto shrink-0 md:ml-0" onClick={signOut} aria-label="Sign out">
+            <LogOut className="size-4" /> <span className="hidden min-[360px]:inline">Sign out</span>
           </Button>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="mx-auto max-w-6xl px-4 py-5 sm:py-8">
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-card/95 backdrop-blur md:hidden">
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-card/95 backdrop-blur md:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
         {NAV.map((item) => {
           const Icon = item.icon;
           return (
