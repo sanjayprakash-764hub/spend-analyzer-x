@@ -54,7 +54,7 @@ function AuthPage() {
       }
       if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
           options: { emailRedirectTo: window.location.origin, data: { name } },
         });
@@ -65,8 +65,35 @@ function AuthPage() {
         }
         return;
       }
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) {
+        const code = (error as { code?: string }).code;
+        if (code === "email_not_confirmed") {
+          toast.error("Please confirm your email first. Check your inbox (and spam).", {
+            action: {
+              label: "Resend email",
+              onClick: async () => {
+                const { error: e } = await supabase.auth.resend({
+                  type: "signup",
+                  email: email.trim(),
+                  options: { emailRedirectTo: window.location.origin },
+                });
+                if (e) toast.error(e.message);
+                else toast.success("Confirmation email sent again.");
+              },
+            },
+          });
+          return;
+        }
+        if (code === "invalid_credentials") {
+          toast.error(
+            "Email or password is wrong. If you created this account with Google, use \"Continue with Google\" or tap \"Forgot your password?\" to set a password.",
+            { duration: 8000 },
+          );
+          return;
+        }
+        throw error;
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
