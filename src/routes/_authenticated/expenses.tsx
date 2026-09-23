@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExpenseDialog } from "@/components/ExpenseDialog";
-import { CATEGORIES, categoryMeta, money, prettyDate, type Transaction } from "@/lib/expenses";
+import { CATEGORIES, PAYMENT_METHODS, categoryMeta, money, prettyDate, type Transaction } from "@/lib/expenses";
 
 export const Route = createFileRoute("/_authenticated/expenses")({
   head: () => ({
@@ -28,6 +28,23 @@ function Expenses() {
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
+  const [payment, setPayment] = useState("all");
+  const [merchantFilter, setMerchantFilter] = useState("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const activeFilters = [category !== "all", payment !== "all", merchantFilter !== "all", from, to, minAmount, maxAmount].filter(Boolean).length;
+  const clearFilters = () => {
+    setCategory("all");
+    setPayment("all");
+    setMerchantFilter("all");
+    setFrom("");
+    setTo("");
+    setMinAmount("");
+    setMaxAmount("");
+  };
 
   const { data: transactions = [], isLoading } = useQuery({
     queryKey: ["transactions", "all"],
@@ -36,7 +53,7 @@ function Expenses() {
         .from("transactions")
         .select("id, amount, category, merchant, date, payment_method, description")
         .order("date", { ascending: false })
-        .limit(500);
+        .limit(2000);
       if (error) throw error;
       return (data ?? []).map((row) => ({ ...row, amount: Number(row.amount) })) as Transaction[];
     },
@@ -54,14 +71,27 @@ function Expenses() {
     onError: () => toast.error("Could not delete that expense"),
   });
 
+  const merchants = useMemo(
+    () => [...new Set(transactions.map((t) => t.merchant?.trim()).filter((m): m is string => Boolean(m)))].sort((a, b) => a.localeCompare(b)),
+    [transactions],
+  );
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
+    const min = minAmount === "" ? null : Number(minAmount);
+    const max = maxAmount === "" ? null : Number(maxAmount);
     return transactions.filter((item) => {
       if (category !== "all" && item.category !== category) return false;
+      if (payment !== "all" && item.payment_method !== payment) return false;
+      if (merchantFilter !== "all" && (item.merchant ?? "").trim() !== merchantFilter) return false;
+      if (from && item.date < from) return false;
+      if (to && item.date > to) return false;
+      if (min !== null && Number.isFinite(min) && item.amount < min) return false;
+      if (max !== null && Number.isFinite(max) && item.amount > max) return false;
       if (!term) return true;
       return `${item.merchant ?? ""} ${item.description ?? ""} ${item.category}`.toLowerCase().includes(term);
     });
-  }, [transactions, search, category]);
+  }, [transactions, search, category, payment, merchantFilter, from, to, minAmount, maxAmount]);
 
   const total = filtered.reduce((acc, item) => acc + item.amount, 0);
 
@@ -88,25 +118,70 @@ function Expenses() {
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search merchant or note"
+            placeholder="Search e.g. Amazon"
             className="pl-9"
             maxLength={80}
           />
         </div>
-        <Select value={category} onValueChange={setCategory}>
-          <SelectTrigger className="w-[190px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
-            {CATEGORIES.map((item) => (
-              <SelectItem key={item} value={item}>
-                {categoryMeta(item).emoji} {item}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Button variant={showFilters ? "secondary" : "outline"} onClick={() => setShowFilters((v) => !v)}>
+          <SlidersHorizontal className="size-4" /> Filters{activeFilters ? ` (${activeFilters})` : ""}
+        </Button>
+        {activeFilters > 0 && (
+          <Button variant="ghost" onClick={clearFilters}>
+            <X className="size-4" /> Clear
+          </Button>
+        )}
       </div>
+
+      {showFilters && (
+        <div className="surface grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <FilterField label="From date">
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </FilterField>
+          <FilterField label="To date">
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </FilterField>
+          <FilterField label="Min amount (₹)">
+            <Input inputMode="decimal" value={minAmount} onChange={(e) => setMinAmount(e.target.value.replace(/[^\d.]/g, ""))} placeholder="0" />
+          </FilterField>
+          <FilterField label="Max amount (₹)">
+            <Input inputMode="decimal" value={maxAmount} onChange={(e) => setMaxAmount(e.target.value.replace(/[^\d.]/g, ""))} placeholder="Any" />
+          </FilterField>
+          <FilterField label="Category">
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {CATEGORIES.map((item) => (
+                  <SelectItem key={item} value={item}>{categoryMeta(item).emoji} {item}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FilterField>
+          <FilterField label="Payment method">
+            <Select value={payment} onValueChange={setPayment}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All methods</SelectItem>
+                {PAYMENT_METHODS.map((item) => (
+                  <SelectItem key={item} value={item}>{item}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FilterField>
+          <FilterField label="Merchant">
+            <Select value={merchantFilter} onValueChange={setMerchantFilter}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All merchants</SelectItem>
+                {merchants.map((item) => (
+                  <SelectItem key={item} value={item}>{item}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FilterField>
+        </div>
+      )}
 
       <div className="surface divide-y divide-border p-2">
         {isLoading && <p className="p-5 text-sm text-muted-foreground">Loading…</p>}
@@ -159,5 +234,14 @@ function Expenses() {
         editing={editing}
       />
     </div>
+  );
+}
+
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="space-y-1.5 text-xs font-medium text-muted-foreground">
+      <span>{label}</span>
+      {children}
+    </label>
   );
 }

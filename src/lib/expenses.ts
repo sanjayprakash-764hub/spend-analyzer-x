@@ -128,3 +128,22 @@ export function guessCategory(text: string): { category: Category; matched: bool
   }
   return { category: "Other", matched: false };
 }
+
+/** Keyword guess with a confidence score: exact merchant word matches score higher than loose note matches. */
+export function guessWithConfidence(merchant: string, notes: string): { category: Category; confidence: number } | null {
+  const m = merchant.toLowerCase().trim();
+  const n = notes.toLowerCase();
+  for (const [category, keywords] of RULES) {
+    for (const k of keywords) {
+      const key = k.trim();
+      if (m && new RegExp(`(^|[^a-z])${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z]|$)`).test(m)) {
+        return { category, confidence: key.length >= 5 ? 97 : 92 };
+      }
+    }
+  }
+  for (const [category, keywords] of RULES) {
+    if (keywords.some((k) => m.includes(k.trim()))) return { category, confidence: 85 };
+    if (keywords.some((k) => n.includes(k))) return { category, confidence: 78 };
+  }
+  return null;
+}
