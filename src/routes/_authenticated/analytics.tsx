@@ -39,7 +39,7 @@ function Analytics() {
   const { months, cats, methods, total } = useMemo(() => {
     const months = Array.from({ length: 6 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
-      return { key: `${d.getFullYear()}-${d.getMonth()}`, label: MONTH_NAMES[d.getMonth()].slice(0, 3), total: 0 };
+      return { key: `${d.getFullYear()}-${d.getMonth()}`, label: (MONTH_NAMES[d.getMonth()] ?? "").slice(0, 3), total: 0 };
     });
     const cats = new Map<string, number>();
     const methods = new Map<string, number>();
