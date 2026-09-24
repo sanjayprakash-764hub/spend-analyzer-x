@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { LayoutDashboard, ListOrdered, MessageCircleQuestion, PiggyBank, LogOut, Wallet } from "lucide-react";
+import { LayoutDashboard, ListOrdered, MessageCircleQuestion, PiggyBank, LogOut, Wallet, BarChart3, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,9 @@ const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/expenses", label: "Expenses", icon: ListOrdered },
   { to: "/budget", label: "Budget", icon: PiggyBank },
-  { to: "/assistant", label: "Ask", icon: MessageCircleQuestion },
+  { to: "/analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/assistant", label: "AI", icon: MessageCircleQuestion },
+  { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 function AuthenticatedLayout() {
@@ -89,12 +91,12 @@ function AuthenticatedLayout() {
               key={item.to}
               to={item.to}
               className={cn(
-                "flex flex-1 flex-col items-center gap-1 py-3 text-xs text-muted-foreground",
+                "flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 py-2 text-[10px] text-muted-foreground min-[360px]:text-[11px]",
                 pathname === item.to && "text-primary",
               )}
             >
               <Icon className="size-5" />
-              {item.label}
+              <span className="truncate">{item.label}</span>
             </Link>
           );
         })}
