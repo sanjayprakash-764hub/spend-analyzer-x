@@ -130,7 +130,7 @@ function Landing() {
       </section>
 
       <footer className="border-t border-border py-8 text-center text-xs text-muted-foreground">
-        Spend Manager — an expense tracker, not a banking app. It never moves money.
+        Spend Manager — an expense tracker, not a banking app. It never moves money. <Link to="/privacy" className="underline">Privacy</Link> · <Link to="/terms" className="underline">Terms</Link>
       </footer>
     </div>
   );

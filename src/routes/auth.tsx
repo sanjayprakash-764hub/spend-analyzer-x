@@ -206,6 +206,10 @@ function AuthPage() {
           )}
         </div>
       </div>
+      <p className="mt-6 max-w-md text-center text-xs text-muted-foreground">
+        By continuing you agree to our <Link to="/terms" className="underline">Terms</Link> and{" "}
+        <Link to="/privacy" className="underline">Privacy Policy</Link>.
+      </p>
     </div>
   );
 }
